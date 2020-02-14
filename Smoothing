@@ -1,0 +1,166 @@
+/*
+ *信号或图像的能量大部分集中在低频和中频段，一个能降低高频成分幅度的滤波器能够减弱噪声的影响
+ * 图像滤波的目的：1.抽出对象的特征作为图像识别的特征模式 2.为了适应图像处理的要求，消除图像数字化时所混入的噪声
+ * 图像滤波的原理：滤波器(filter)，也叫做核(kernel)、模板(template)、或者窗口(window)
+ *              使用m×n的滤波器对大小为M×N的图像进行线性空间滤波可以有下面式子表示：g(x,y)=Sigma(s=-1,a)Sigma(t=-b,b)w(s,t)f(x+s,y+t)
+ * 平滑滤波：1.平滑处理(smoothing)也称模糊处理(bluring)，是低频增强的空间滤波技术，常用来减少图像上的噪点或者失真
+ *          2.空间域的平滑滤波一般采用简单的平均法进行，就是求邻近像元点的平均亮度值，邻域的大小于平滑的效果相关，领域越大平滑效果越好，但过大会使边缘信
+ *          息损失越大，输出图像变模糊
+ * 滤波和模糊
+ * 滤波和卷积（如果卷积核是中心对称的，那么滤波和卷积操作结果相同）
+ *
+ * 线性滤波：1.方框滤波
+ *          2.均值滤波（方框滤波归一化）(*)
+ *          3.高斯滤波(*)
+ * 非线性滤波：1.中值滤波
+ *           2.双边滤波
+ *
+ * 图像形态学操作是基于形状的一系列图像处理操作，主要是基于集合论基础上的形态学数学
+ * 形态学有四个基本操作：膨胀、腐蚀、开、闭
+ * 膨胀和腐蚀是对白色部分（高亮部分）而言的
+ * 开操作：先腐蚀，后膨胀
+ * 闭操作：先膨胀。后腐蚀
+ */
+#include<opencv2/opencv.hpp>
+#include<iostream>
+
+using namespace cv;
+using namespace std;
+
+int blurvalue=5;    //滑动条初值
+Mat srcImage = imread("3.jpg");
+Mat adjustable_Blurvalue;
+static void on_Blur(int, void*);    //滑动填回调函数
+
+int main()
+{
+    //[1]：方框滤波 boxFilter()  （P157）
+    //     第一个参数src，Mat类的输入图像
+    //     第二个参数dst，目标图像
+    //     第三个参数ddepth，输出图像的深度，-1代表使用原图深度
+    //     第四个参数ksize，Size类型，内核的大小
+    //     第五个参数anchor，Point类型，表示锚点，默认值锚点在核的中心
+    //     第六个参数normalize，bool型，默认值为True，表示内核区域被归一化（此时和均值滤波无区别）
+    //     第七个参数borderType，用于推断图像外部像素的某种边界模式
+    Mat srcImage1 = imread("3.jpg");
+    imshow("[srcImage]", srcImage1);
+    Mat boxImage;
+    boxFilter(srcImage1, boxImage, -1, Size(5, 5));
+    imshow("[boxFilter]", boxImage);
+
+
+    //[2]：均值滤波(归一化的方框滤波) blur()  (P158)
+    //     第一个参数src，Mat类的输入图像
+    //     第二个参数dst，目标图像
+    //     第三个参数ksize，Size类型，内核的大小
+    //     第四个参数anchor，Point类型，表示锚点，默认值锚点在核的中心
+    //     第五个参数borderType，用于推断图像外部像素的某种边界模式
+    Mat blurImage;
+    blur(srcImage1, blurImage, Size(5, 5));
+    imshow("[blur]", blurImage);
+
+
+    //[3]：高斯滤波 GaussianBlur()   (P159)
+    //     第一个参数src，Mat类的输入图像
+    //     第二个参数dst，目标图像
+    //     第三个参数ksize，Size类型，高斯内核的大小，ksize.width和ksize,height必须为正数和奇数，或者是零
+    //     第四个参数sigmaX，表示高斯核函数在X方向的标准偏差
+    //     第五个参数sigmaY，表示高斯核函数在Y方向的标准偏差
+    //     第六个参数borderType，用于推断图像外部像素的某种边界模式
+    Mat gaussImage;
+    GaussianBlur(srcImage1, gaussImage, Size(5, 5), 0, 0);
+    imshow("[GaussianBlur]", gaussImage);
+
+
+    //[4]：滑动条的创建 createTrackbar()   (P73)
+    //     第一个参数trackbarname，滑动条的名字
+    //     第二个参数winname，窗口的名字，对应nameWindow()创建的窗口名
+    //     第三个参数value，一个指向整形的指针，表示滑块的位置
+    //     第四个参数count，表示滑块可以达到的最大位置的值
+    //     第五个参数onChange，默认值0,这是一个指向回调函数的指针，每次滑动条改变位置，都会执行这个回调函数
+    //     第六个参数userdata，默认值0,这个参数时用户传给回调函数的数据，用来处理滑动条事件
+
+    namedWindow("[adjustable_Blur]");
+    createTrackbar("kernel", "[adjustable_Blur]", &blurvalue, 20, on_Blur);
+    on_Blur(blurvalue, 0);
+
+
+    //[5]：中值滤波 medianBlur()     (P178)
+    //     在图像中的3×3矩阵，将里面9个像素点进行排序，最后将这个矩阵的中心点赋值为这9个像素点的中值
+    //     中值滤波在一定条件下，可以克服线性滤波器所带来的图像细节模糊，对滤除脉冲干扰即图像扫描噪声最为有效
+    //     第一个参数src，Mat类的输入图像
+    //     第二个参数dst，目标图像
+    //     第三个参数ksize，孔径的线性尺寸，此参数必须是大于1的奇数，如3、5、7、9...
+    Mat medImage;
+    medianBlur(srcImage1, medImage, 7);
+    imshow("[medianBlur]", medImage);
+
+
+    //[6]：双边滤波 bilateralFilter()    (P180)
+    //     第一个参数src，Mat类的输入图像
+    //     第二个参数dst，目标图像
+    //     第三个参数d，表示在滤波过程中每个像素邻域的直径
+    //     第四个参数sigmaColor，颜色空间滤波器的sigma值
+    //     第五个参数sigmaSpace，坐标空间中滤波器的sigma值，坐标空间的标注方差
+    //     第六个参数borderType，用于推断图像外部像素的某种边界模式
+    Mat bilaImage;
+    bilateralFilter(srcImage1, bilaImage, 25, 25*2, 25/2);
+    imshow("[bilateraFilter]", bilaImage);
+
+
+    //[7]：膨胀 dilate()    (P191)
+    //     膨胀是对图像中的高亮部分进行膨胀，效果图拥有比原图更大的高亮部分
+    //     膨胀原理：像素X置于模板中心，根据模板的大小，遍历所有被模板覆盖的其他像素，修改像素X的值为所有像素中的最大值
+    //     第一个参数src，Mat类的输入图像
+    //     第二个参数dst，目标图像，需要和输入图像有一样的尺寸和类型
+    //     第三个参数kernel，膨胀操作的核，为NULL时表示使用参考点位于中心3×3的核
+    //        一般使用getStructuringElement()配合这个参数的使用，getStructuringElement()返回指定形状和尺寸的结构元素（内核矩阵）
+    //        getStructuringElement()第一个参数表示内核的形状，可选矩形:MORTH_RECT，交叉形:MORPH_CROSS，椭圆形:MORTH_ELLIPSE
+    //                               第二个参数表示内核的尺寸
+    //                               第三个参数表示锚点的位置，默认值Point(-1,-1)表示锚点位于中心，十字形的element形状唯一依赖于锚点位置，
+    //                               其他情况下，锚点只是影响了形态学运算结果的偏移
+    //     第四个参数anchor，Point类，锚点的位置
+    //     第五个参数iterations，迭代使用diate()函数的次数，默认值为1
+    //     第六个参数borderType，用于推断图像外部像素的某种边界模式
+    //     第七个参数borderValue，当边界为常数时的边界值，有默认值
+    Mat srcImage2 = imread("1.jpg");
+    imshow("srcImage2", srcImage2);
+    Mat dilaImage;
+    Mat element1 = getStructuringElement(MORPH_RECT, Size(5, 5));
+    dilate(srcImage2, dilaImage, element1);
+    imshow("[dilate]", dilaImage);
+
+
+
+    //[8]：腐蚀 erode()    (P193)
+    //     膨胀是对图像中的高亮部分进行腐蚀，效果图拥有比原图更小的高亮部分
+    //     膨胀原理：像素X置于模板中心，根据模板的大小，遍历所有被模板覆盖的其他像素，修改像素X的值为所有像素中的最小值
+    //     第一个参数src，Mat类的输入图像
+    //     第二个参数dst，目标图像，需要和输入图像有一样的尺寸和类型
+    //     第三个参数kernel，膨胀操作的核，为NULL时表示使用参考点位于中心3×3的核
+    //        一般使用getStructuringElement()配合这个参数的使用，getStructuringElement()返回指定形状和尺寸的结构元素（内核矩阵）(同膨胀操作)
+    //     第四个参数anchor，Point类，锚点的位置
+    //     第五个参数iterations，迭代使用diate()函数的次数，默认值为1
+    //     第六个参数borderType，用于推断图像外部像素的某种边界模式
+    //     第七个参数borderValue，当边界为常数时的边界值，有默认值
+     Mat eroImage;
+     Mat element2 = getStructuringElement(MORPH_RECT, Size(5, 5));
+     erode(srcImage2, eroImage, element2);
+     imshow("[erode]", eroImage);
+
+
+    //[9]：开操作：先腐蚀，后膨胀
+    //[10]：闭操作：先膨胀。后腐蚀
+
+
+
+
+    waitKey(0);
+}
+
+//回调函数
+static void on_Blur(int, void *)
+{
+    blur(srcImage, adjustable_Blurvalue, Size(blurvalue+1, blurvalue+1));   //内核大小不能为0
+    imshow("[adjustable_Blur]", adjustable_Blurvalue);
+}
