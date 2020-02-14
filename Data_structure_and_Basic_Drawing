@@ -1,0 +1,172 @@
+#include<opencv2/opencv.hpp>
+#include<opencv2/highgui/highgui.hpp>
+
+using namespace cv;
+using namespace std;
+
+int main()
+{
+    /*Mat是一个类，有两个数据部分组成：矩阵头（包含矩阵尺寸、存储
+     方法、存储地址等信息)和一个指向存储所有像素之的矩阵（根据所选
+     存储方法的不同、矩阵可以是不同的维数）
+     CV—[位数][带符号数][类型前缀]C[通道数]
+    */
+    Mat srcImage1(240, 320, CV_8U); //等价于Mat srcImage=Mat::zero(240,320,CV_8U)
+    imshow("[1]", srcImage1);
+
+    Mat M(3, 3, CV_8UC3, Scalar(0, 0, 255));    //3通道是指BGR三个通道，单通道是指灰度图，第4个通道是alpha通道（透明度）
+    cout << "M = " << endl << " " << M << endl << endl; //endl相当于换行
+
+
+    //[1]：empty() 判断Mat是否有元素，或者是否分配了空间
+    if(!srcImage1.empty())
+        cout << "有" << endl;
+        //相当于C语言中的printf
+        // >> 相当于scanf
+    else
+        cout << "无" << endl;
+
+
+    //[2]：channels() 返回一个Mat对象的通道数
+    cout << "channels = " << srcImage1.channels() << endl;
+
+
+    //[3]：create() 重新为矩阵开辟内存
+    srcImage1.create(200, 200, CV_8U);
+    imshow("[3]", srcImage1);
+
+
+    //[4]：Point类 表示二维坐标系下的点，其图像坐标由x, y指定
+    Point point;
+    point.x = 10;
+    point.y = 10;
+
+
+    //[5]：Scalar类 表示颜色
+    //     Scalar(Blue, Green, Red)
+
+    //     Size类 尺寸的表示
+    //     Size(_Tp _width, _Tp,_height)
+
+    //     Rect类 矩形的表示
+    //     成员变量有x, y, width, height，分别表示左上角点的坐标和矩形的宽和高
+    //     常用成员函数：Size()返回Size；area()返回矩形面积;contains(Point)判断点是否在矩形内;
+    //                 inside(Rect)判断矩形是否在改矩形内；tl()返回左上角点坐标；br()返回右上角点坐标
+    Rect rect1(150, 200, 100, 120);
+    Point point2(180, 240);
+    if(rect1.contains(point2))
+        cout << "点在矩形内" << endl;
+    else
+        cout << "点不在矩形内" << endl;
+    cout << "size = " << rect1.size() << endl;
+    cout << "area = " << rect1.area() << endl;
+    cout << "tl = " << rect1.tl() << endl;
+    cout << "br = " << rect1.br() << endl;
+
+
+    //[6]：图像的载入 imread()
+    //     第一个参数filename，填我们需要载入的图像路径名
+    //     第二个参数flags，指定加载图像的颜色类型
+    Mat srcImage2 = imread("3.jpg", 1);
+    Mat srcImage3 = imread("3.jpg", 0);
+    Mat srcImage4 = imread("3.jpg", 2|4);
+
+
+    //[7]：图像的显示 imshow()
+    //     第一个参数winanme，填需要显示的窗口标识名称
+    //     第二个参数mat，填需要显示的图像
+    imshow("[7_1]", srcImage2);
+    imshow("[7_2]", srcImage3);
+    imshow("[7_3]", srcImage4);
+
+
+    //[8]：颜色空间转换 cvtColor()
+    //     第一个参数为输入图像
+    //     第二个参数为输出图像
+    //     第三个参数为颜色空间转换标识符
+    //     第四个参数为目标图像的通道数
+    Mat dstImage1, dstImage2;
+    cvtColor(srcImage2, dstImage1, COLOR_BGR2GRAY);  //转换成灰度图
+    imshow("[8]", dstImage1);
+    cvtColor(srcImage2, dstImage2, COLOR_BGR2HSV);  //转化到HSV域
+    imshow("[8]", dstImage2);
+
+
+    //[9]：输出图像到文件 imwrite()
+    //     第一个参数filename，填需要写入的文件名（注意带后缀）
+    //     第二个参数img，一般填一个Mat类的图像数据
+    //     第三个参数params，表示为特定格式保存的参数编码
+    imwrite("4.jpg", dstImage2);    //第一个参数也可填绝对路径
+
+
+    //[10]：尺寸调整函数 resize()
+    //     第一个参数src，填输入图像
+    //     第二个参数dst，填输出图像
+    //     第三个参数Size类型的dsize，输出图像大小，等于0时由dsize=Size(round(fx*src.cols),round(fy*src.rows)计算得
+    //     第四个参数fx，沿水平轴的缩放系数，等于0时由	(double)dsize.width/src.cols计算得
+    //     第五个参数fy，沿垂直轴的缩放系数，等于0时由	(double)dsize.height/src.rows计算得
+    //     第六个参数interpolation，用于指定插值方式
+    Mat srcImage5 = imread("2.jpg");
+    imshow("[10_1]", srcImage5);
+    resize(srcImage5, srcImage5, Size(0, 0), 0.5, 0.5);
+    imshow("[10_2]", srcImage5);
+
+
+    //[11]：绘制直线 line()
+    //     第一个参数img，要绘制线段的图像
+    //     第二个参数pt1，线段的起点
+    //     第三个参数pt2，线段的终点
+    //     第四个参数color，线段的颜色，通过一个Scalar类定义
+    //     第五个参数thickness，线段的宽度
+    //     第六个参数linrType，线段的类型，可以取值8,4,CV__AA，分别表示8邻连接线，4邻连接线和反锯齿连接线，默认值为8
+    //     第七个参数shift，坐标点小数点位数
+    line(srcImage5, Point(0, 0), Point(640, 480), Scalar(255, 0, 0), 3, 8, 0);
+    imshow("[11]", srcImage5);
+
+
+    //[12]：绘制圆 circle()
+    //     第一个参数img，要绘制圆的图像
+    //     第二个参数center，圆心坐标
+    //     第三个参数radius，圆的半径
+    //     第四个参数color，线条的颜色
+    //     第五个参数thickness，正数表示圆线条的粗细程度，否则表示圆是否被填充
+    //     第六个参数lineType，线条的类型，同line()
+    //     第七个参数shift，圆心坐标和半径值的小数点位数
+    circle(srcImage5, Point(320, 240), 15, Scalar(0, 255, 255), 2, 8, 0);
+    imshow("[12]", srcImage5);
+
+
+    //[13]：绘制椭圆 ellipse()
+    //     第一个参数img，要绘制椭圆的图像
+    //     第二个参数center，椭圆圆心坐标
+    //     第三个参数axes，轴的长度
+    //     第四个参数angle，偏转的角度
+    //     第五个参数start_angle，圆弧起始角的角度
+    //     第六个参数end_angle，圆弧终结角的角度
+    //     第七个参数color，线条的颜色
+    //     第八个参数thickness，线条的粗细程度
+    //     第九个参数lineType，线条的类型，同line()
+    //     第十个参数shift，圆心坐标点和数轴的精度
+    ellipse(srcImage5, Point(200, 200), Size(230, 250), 0 ,0, 360, Scalar(255, 0, 255), 3);
+    imshow("[13]", srcImage5);
+
+
+    //[14]：绘制矩形 rectangle()
+    //     第一个参数img，要绘制矩形的图像
+    //     第二个参数pt1，矩形对角线上的一个定点
+    //     第三个参数pt2，矩形对角线上的另一个定点
+    //     第四个参数color，线条的颜色，通过一个Scalar类定义
+    //     第五个参数thickness，线条的宽度
+    //     第六个参数linrType，线条的类型，可以取值8,4,CV__AA，分别表示8邻连接线，4邻连接线和反锯齿连接线，默认值为8
+    //     第七个参数shift，坐标点小数点位数
+    rectangle(srcImage5, Point(100, 150), Point(200, 200), Scalar(255, 255, 255), 4, 8);
+    //法二：矩形类
+    Rect rect2(150, 200, 100, 120);
+    rectangle(srcImage5, rect2, Scalar(125, 240, 150), 2, 8);
+    imshow("[14]", srcImage5);
+
+
+
+    //图像用参数0,摄像头用参数1
+    waitKey(0);
+}
