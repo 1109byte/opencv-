@@ -1,0 +1,158 @@
+/*基本阈值操作：1.二值阈值化
+ *            2.反向二值阈值化
+ *            3.截断阈值化
+ *            4.低于阈值被置为0
+ *            5.超过阈值被置为0
+ *
+ * Canny边缘检测 步骤：1.使用高斯滤波器，以平滑图像，消除噪声
+ *                   2.计算图像中每个像素点的梯度强度和方向（各种算子）
+ *                   3.应用非极大值抑制，以消除边缘检测带来的杂散响应
+ *                   4.应用双阈值检测来确定真实的和潜在的边缘
+ *                         双阈值（高阈值和低阈值）
+ *                         (1)若某一像素位置的幅值超过高阈值，则该像素被保留为边缘像素
+ *                         (2)若某一像素位置的幅值在两个阈值之间，则该像素仅仅在连接到一个高于高阈值的像素时被保留
+ *                   5.通过抑制孤立的弱边缘最终完成边缘检测
+ *
+ * 霍夫变换 是图像处理中的一种特征提取技术，该过程在一个参数空间中通过计算累计结果的局部最大值得到一个符合该特定形状的集合
+ *         作为霍夫变换的结果
+ *         霍夫变换运用两个坐标空间之间的变换将在一个空间中具有相同形状的曲线或直线映射到另一个坐标空间的一个点形成峰值，从而把检测任意形
+ *         状的问题转化为统计峰值的问题
+ *
+ * 霍夫线变换：1.标准霍夫变换
+ *           2.多尺度霍夫变换
+ *           3.累计概率霍夫变换（可看作是标准霍夫变换的改进，在一定范围内进行霍夫变换，减少计算量，缩短计算时间）
+ * 霍夫线变换原理：1.一条直线在图像二维空间可由两个变量表示（笛卡尔坐标系或者极坐标系）
+ *               2.一般来说对于点(x0,y0)，可以将通过这个点的一组直线统一定义为r(theta) = x0×cos(theta) + y0×sin(theta)
+ *               3.如果对于给定点(x0,y0)，我们在极坐标系对极径极角平面绘出所有通过它的直线，将得到一条正弦曲线
+ *               4.对图像中所有点进行上述操作，如果两个不同的点进行上述操作后得到的曲线在平面theta-r内相交，说明它们通过同一条直线
+ *               5.一般来说，一条直线能够通过在平面theta-r寻找交于一点的曲线数量来检测
+ *        这就是霍夫线变换要做的：它追踪图像中每个点对应曲线间的交点。如果交于一点的曲线数量超过了阈值，就可以认为这个交点所代表的参数对(theta,r)在原图像中为一条直线
+ *
+ * 霍夫圆变换：原理于霍夫线变换类似，执行效率低，速度慢
+ */
+#include<opencv2/opencv.hpp>
+#include<iostream>
+
+using namespace cv;
+using namespace std;
+
+int main()
+{
+    //[1]：固定阈值操作 Threshold()    (P5)
+    //     第一个参数src，Mat类，*填单通道，8或32位浮点数
+    //     第二个参数dst，Mat类输出图像，与输入图像有一样的尺寸和类型
+    //     第三个参数thresh，阈值的具体值
+    //     第四个参数maxval，当第五个参数取CV_THRESH_BINARY 或 CV_THRESH_BINARY_INV时的阈值最大值
+    //     第五个参数type，阈值类型：1.二值阈值化 THRESH_BINARY
+    //                            2.反向二值阈值化 THRESH_BINARY_INV
+    //                            3.截断阈值二值化 THRESH_TRUNC
+    //                            4.低于阈值被置为0 THRESH_TOZERO
+    //                            5.超过阈值被置为0 THRESH_TOZERO_INV
+    //                            上述标识符对应取值分别为0, 1, 2, 3, 4
+    Mat srcImage1 = imread("4.jpg");
+    Mat grayImage;
+    cvtColor(srcImage1, grayImage, COLOR_BGR2GRAY);   //Threshold()输入参数必须为灰度图
+    imshow("[灰度图]", grayImage);
+
+    Mat threshImage1, threshImage2, threshImage3, threshImage4, threshImage5;
+    threshold(grayImage, threshImage1, 50, 255, 0);
+    threshold(grayImage, threshImage2, 50, 255, 1);
+    threshold(grayImage, threshImage3, 50, 255, 2);
+    threshold(grayImage, threshImage4, 50, 255, 3);
+    threshold(grayImage, threshImage5, 50, 255, 4);
+    imshow("[二值阈值化]", threshImage1);
+    imshow("[反向二值阈值化]", threshImage2);
+    imshow("[截断阈值二值化]", threshImage3);
+    imshow("[低于阈值被置为0]", threshImage4);
+    imshow("[高于阈值被置为0]", threshImage5);
+
+
+    //[2]：自适应阈值操作 adaptiveThreshold()   (P6)
+    //     第一个参数src，Mat类，必须为8位单通道浮点型图像
+    //     第二个参数dst，需和原图像有一样的尺寸和类型
+    //     第三个参数maxValue，阈值最大值
+    //     第四个参数adaptiveMethod，用于指定要使用的自适应阈值算法
+    //              可取值：取平均值 ADAPTIVE_THRESH_MEAN_C
+    //                     阈值T(x,y)为blockSize×blockSize邻域内(x,y)减去参数C的平均值
+    //                     高斯函数计算 ADAPTIVE_THRESH_GANSSIAN_C
+    //                     阈值T(x,y)为blockSize×blockSize邻域内(x,y)减去参数C于高斯窗交叉相关的加权总和
+    //     第五个参数thresholdType，二值阈值化 HRESH_BINARY 或 反向二值阈值化THRESH_BINARY_INV
+    //     第六个参数blockSize，用于计算阈值大小的一个像素的邻域尺寸，取值为3, 5, 7等
+    //     第七个参数C，减去平均或加权平均后的常数值，通常为正数，少数情况下可以为零或负数
+    Mat adapImage;
+    adaptiveThreshold(grayImage, adapImage, 255, ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 3, 20);
+    imshow("[自适应阈值]", adapImage);
+
+
+    //[3]：Canny边缘检测 canny()
+    //     第一个参数src，Mat类，必须为8位单通道图像
+    //     第二个参数edges，OutputArray类，输出的边缘图，需和输入图有一样的尺寸和类型
+    //     第三个参数threshold1，第一个滞后性阈值
+    //     第四个参数threshold2，第二个滞后性阈值
+    //     threshold1和threshold2两者中较小的值用于边缘连接，而较大的值用来控制强边缘的初始段
+    //     推荐的高低阈值比在2:1到3:1之间
+    //     第五个参数apertureSize，表示应用sobel算子的孔径大小，默认值为3
+    //     第六个参数L2gradient，一个计算图像梯度幅值的标识，有默认值false
+    Mat srcImage2 = imread("5.jpg");
+    Mat grayImage2, cannyImage;
+    cvtColor(srcImage2, grayImage2, COLOR_BGR2GRAY);
+    Canny(grayImage2, cannyImage, 100, 200, 3);
+    imshow("[边缘检测]", cannyImage);
+
+
+    //[4]：标准霍夫变换 HoughLine()     (P37)
+    //     第一个参数src，需为8位的单通道二进制图像
+    //     第二个参数lines，InputArray类型，经过调用HoughLine()函数后存储了霍夫线变换检测到线条的输出矢量(rho,theta)
+    //     第三个参数rho，以像素为单位的距离精度，另一种表述方式是直线搜索时的进步尺寸的单位半径
+    //     第四个参数theta，以弧度为单位的角度精度，另一种表述方式是直线搜索时的进步尺寸的单位角度
+    //     第五个参数threshold，累加平面的阈值参数，积识别某部分为图中的一条直线时它在累加平面中必须达到的值
+    //     第六个参数srn，默认值0
+    //     第七个参数stn，默认值0
+    vector<Vec2f> lines;
+    HoughLines(cannyImage, lines, 1, CV_PI/180, 260, 0, 0);
+    Mat resultImage1 = srcImage2.clone();
+
+    //将检测到的lines画出来
+    for( int i=0; i < lines.size(); i++ )
+    {
+        float rho = lines[i][0];
+        float theta = lines[i][1];
+        double a = cos(theta), b = sin(theta);
+        double x0 = a * rho, y0 = b * rho;  //极坐标域转换为直角坐标域
+        Point p1, p2;
+        p1.x = cvRound(x0 + 2000 * (-b));
+        p1.y = cvRound(y0 + 2000 * a);
+        p2.x = cvRound(x0 - 2000 * (-b));
+        p2.y = cvRound(y0 - 2000 * a);
+
+        line(resultImage1, p1, p2, Scalar(255, 0, 0), 1, 8);
+    }
+    imshow("[霍夫线变换]", resultImage1);
+
+
+    //[5]：累计概率霍夫变换 HoughLinesP()    (P39)
+    //     第一个参数src，需为8位的单通道二进制图像
+    //     第二个参数lines，InputArray类型，经过调用HoughLineP()函数后存储了霍夫线变换检测到线条的输出矢量(x_1,y_1,x_2,y_2)
+    //             其中，(x_1,y_1)和(x_2,y_2)时每个检测到的线段的结束点
+    //     第三个参数rho，以像素为单位的距离精度，另一种表述方式是直线搜索时的进步尺寸的单位半径
+    //     第四个参数theta，以弧度为单位的角度精度，另一种表述方式是直线搜索时的进步尺寸的单位角度
+    //     第五个参数threshold，累加平面的阈值参数，积识别某部分为图中的一条直线时它在累加平面中必须达到的值
+    //     第六个参数minLineLength，默认值为0，表示最低线段的长度，低于这个参数的线段不能被显现出来
+    //     第七个参数和maxLineGap，默认值为0,允许将统一行点与点之间连接起来的最大距离
+    vector<Vec4i> lines2;
+    HoughLinesP(cannyImage, lines2, 1, CV_PI/180, 260, 10, 5);
+    Mat resultImage2 = srcImage2.clone();
+
+    //将检测到的lines画出来
+    for( int i=0; i < lines2.size(); i++ )
+    {
+        //Vec4i l=lines2[i];
+        line(resultImage2, Point(lines2[i][0], lines2[i][1]), Point(lines2[i][2], lines2[i][3]), Scalar(0, 255, 0), 1, 8);
+    }
+    imshow("概率霍夫变换", resultImage2);
+
+
+
+
+    waitKey(0);
+}
